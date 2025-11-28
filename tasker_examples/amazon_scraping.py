@@ -1,12 +1,8 @@
 import os
 import json
 import argparse
-import yaml
 import base64
-from datetime import datetime
-
 import asyncio
-import os
 import traceback
 from datetime import datetime
 
@@ -43,17 +39,12 @@ def analyze_screenshot(screenshot_path: str, question: str, vlm: ModelEngine):
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='Run Todo Agent v2 on a single JSON task')
-    # which product to search for on Amazon
+    parser = argparse.ArgumentParser(description='Crawl Amazon for product data')
     parser.add_argument('--product_name', type=str, default='purse', help='Product name to search for')
-    
-    # run configurations
-    parser.add_argument('--exp_name', type=str, default='amazon_top_sellers', help='Experiment name; all saves under results/exp_name')
+    parser.add_argument('--exp_name', type=str, default='amazon_crawl', help='Experiment name')
     parser.add_argument('--model_info_path', type=str, default='apis/gemini.json', help='Path to model info JSON')
-    parser.add_argument('--save_dir', type=str, default='results/', help='Directory to save the results')
-
-    # tasker configurations
-    parser.add_argument('--model_name', type=str, default='sft-bigs1-1027-s2-1113-mixoc-1107', help='Model name')
+    parser.add_argument('--save_dir', type=str, default='results/', help='Directory to save results')
+    parser.add_argument('--model_name', type=str, default='lux-actor-1', help='Model name')
     parser.add_argument('--max_steps', type=int, default=24, help='Max steps per todo')
     parser.add_argument('--temperature', type=float, default=0.0, help='Temperature')
 
@@ -69,32 +60,28 @@ async def main():
     model_info = ModelInfo(**model_info)
     vlm = ModelEngine(model_info)
 
-    # initialize the tasker and environment
+    # Define the workflow
+    instruction = f"Find the information about the top-selling {args.product_name} on Amazon"
+    todos = [
+        f"Open a new tab, go to www.amazon.com, and search for {args.product_name} in the search bar",
+        f"Click on 'Sort by' in the top right of the page and select 'Best Sellers'",
+    ]
+
+    # Initialize automation toolkit
     observer = AsyncAgentObserver()
     image_provider = AsyncScreenshotMaker()
     action_handler = AsyncPyautoguiActionHandler()
 
     tasker = TaskerAgent(
         api_key=os.getenv("OAGI_API_KEY"),
-        base_url=os.getenv("OAGI_BASE_URL", "https://api.agiopen.org:8081"),
+        base_url=os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
         model=args.model_name,
-        max_steps=args.max_steps,  # Max steps per todo
+        max_steps=args.max_steps,
         temperature=args.temperature,
         step_observer=observer,
     )
 
-    # -------- Define the Workflow --------
-    instruction = f"Find the information about the top-selling {args.product_name} on Amazon"
-    todos = [
-        f"Open a new tab, go to www.amazon.com, and search for {args.product_name} in the search bar",
-        f"Click on 'Sort by' in the top right of the page and select 'Best Sellers'", # key point: in the transition state, specify the location clearly
-    ]
-
-    # -------- Run the Tasker --------
-    tasker.set_task(
-        task=instruction,
-        todos=todos,
-    )
+    tasker.set_task(task=instruction, todos=todos)
 
     print(f"Starting task execution at {datetime.now()}")
     print(f"Task: {instruction}")
@@ -137,27 +124,23 @@ async def main():
         print(f"  In Progress: {status_summary.get('in_progress', 0)}")
         print(f"  Skipped: {status_summary.get('skipped', 0)}")
 
-        # Print execution history summary
-        if memory.history:
-            print(f"\nExecution History ({len(memory.history)} entries):")
-            for hist in memory.history:
-                print(f"  - Todo {hist.todo_index}: {hist.todo}")
-                print(f"    Actions: {len(hist.actions)}, Completed: {hist.completed}")
-                if hist.summary:
-                    print(f"    Summary: {hist.summary[:100]}...")
-
     except Exception as e:
         print(f"\n❌ Error during execution: {e}")
         traceback.print_exc()
 
-    # ---------- Analyze the Screenshot with VLM --------
+    # Analyze the final screenshot with VLM
     screenshot_path = os.path.join(save_dir, f"{args.product_name}_screenshot.png")
     last_screenshot = await image_provider()
     last_screenshot.image.save(screenshot_path)
-    result = analyze_screenshot(screenshot_path, "Describe the name, color, price, and discount of the items in the first row of the search results", vlm)
+    
+    result = analyze_screenshot(
+        screenshot_path,
+        "Describe the name, color, price, and discount of the items in the first row of the search results",
+        vlm,
+    )
     print(f"VLM result: {result}")
 
-    # ---------- Save the Results --------
+    # Save JSON results
     result_path = os.path.join(save_dir, f"{args.product_name}_result.json")
     with open(result_path, 'w', encoding='utf-8') as f:
         json.dump({
@@ -166,7 +149,7 @@ async def main():
         }, f, ensure_ascii=False, indent=4)
     print(f"Results saved to {result_path}")
 
-    # ---------- Export the Execution History ----------
+    # Export HTML execution history
     output_file = os.path.join(save_dir, f"{args.product_name}_execution_history.html")
     observer.export("html", output_file)
     print(f"\n📄 Execution history exported to: {output_file}")
