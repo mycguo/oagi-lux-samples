@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import sys
 import traceback
 from datetime import datetime
 
@@ -8,6 +9,7 @@ from oagi import AsyncScreenshotMaker
 from oagi.agent.observer import AsyncAgentObserver
 from oagi.agent.tasker import TaskerAgent
 from oagi.handler import AsyncPyautoguiActionHandler
+from oagi.handler.pyautogui_action_handler import PyautoguiConfig
 
 
 async def main():
@@ -38,7 +40,9 @@ async def main():
 
     observer = AsyncAgentObserver()
     image_provider = AsyncScreenshotMaker()
-    action_handler = AsyncPyautoguiActionHandler()
+    action_handler = AsyncPyautoguiActionHandler(
+        config=PyautoguiConfig(scroll_amount=10) if sys.platform == "darwin" else None
+    )
 
     tasker = TaskerAgent(
         api_key=os.getenv("OAGI_API_KEY"),
