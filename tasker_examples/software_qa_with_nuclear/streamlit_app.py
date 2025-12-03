@@ -10,10 +10,10 @@ from oagi.handler import AsyncPyautoguiActionHandler
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Set page configuration
-st.set_page_config(page_title="Amazon Scraping Tasker", page_icon="🛒", layout="wide")
+st.set_page_config(page_title="Software QA Agent", page_icon="🧪", layout="wide")
 
 def main():
-    st.title("🛒 Amazon Scraping Tasker")
+    st.title("🧪 Software QA Agent (Nuclear Player)")
 
     # Sidebar for configuration
     with st.sidebar:
@@ -34,32 +34,36 @@ def main():
         
         st.subheader("Output Settings")
         save_dir = st.text_input("Save Directory", value="results/")
-        exp_name = st.text_input("Experiment Name", value="amazon_crawl")
+        exp_name = st.text_input("Experiment Name", value="nuclear_qa")
 
     # Main area for Task Definition
     st.header("Task Definition")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        product_name = st.text_input("Product Name", value="purse")
-    
-    default_instruction = "Find the information about the top-selling {product_name} on Amazon"
-    instruction_template = st.text_area("Instruction Template", value=default_instruction, height=100)
+    default_instruction = "QA: click through every sidebar button in the Nuclear Player UI"
+    instruction = st.text_area("Instruction", value=default_instruction, height=100)
     
     default_todos = [
-        "Open a new tab, go to www.amazon.com, and search for {product_name} in the search bar",
-        "Click on 'Sort by' in the top right of the page and select 'Best Sellers'",
+        "Click on 'Dashboard' in the left sidebar",
+        "Click on 'Downloads' in the left sidebar",
+        "Click on 'Lyrics' in the left sidebar",
+        "Click on 'Plugins' in the left sidebar",
+        "Click on 'Search Results' in the left sidebar",
+        "Click on 'Settings' in the left sidebar",
+        "Click on 'Equalizer' in the left sidebar",
+        "Click on 'Visualizer' in the left sidebar",
+        "Click on 'Listening History' in the left sidebar",
+        "Click on 'Favorite Albums' in the left sidebar",
+        "Click on 'Favorite Tracks' in the left sidebar",
+        "Click on 'Favorite Artists' in the left sidebar",
+        "Click on 'Local Library' in the left sidebar",
+        "Click on 'Playlists' in the left sidebar",
     ]
-    todos_input = st.text_area("Todos (one per line)", value="\n".join(default_todos), height=150)
+    todos_input = st.text_area("Todos (one per line)", value="\n".join(default_todos), height=300)
 
-    # Construct the final instruction and todos based on inputs
-    final_instruction = instruction_template.format(product_name=product_name)
-    final_todos = [todo.format(product_name=product_name) for todo in todos_input.split('\n') if todo.strip()]
+    # Construct the final todos list
+    final_todos = [todo.strip() for todo in todos_input.split('\n') if todo.strip()]
 
-    st.info(f"**Final Instruction:** {final_instruction}")
-    
-    if st.button("Run Agent", type="primary", disabled=not api_key):
+    if st.button("Run QA Agent", type="primary", disabled=not api_key):
         run_agent(
             api_key=api_key,
             model_name=model_name,
@@ -67,12 +71,11 @@ def main():
             temperature=temperature,
             save_dir=save_dir,
             exp_name=exp_name,
-            product_name=product_name,
-            instruction=final_instruction,
+            instruction=instruction,
             todos=final_todos
         )
 
-def run_agent(api_key, model_name, max_steps, temperature, save_dir, exp_name, product_name, instruction, todos):
+def run_agent(api_key, model_name, max_steps, temperature, save_dir, exp_name, instruction, todos):
     # Setup directories
     full_save_dir = os.path.join(save_dir, exp_name)
     os.makedirs(full_save_dir, exist_ok=True)
@@ -141,17 +144,17 @@ def run_agent(api_key, model_name, max_steps, temperature, save_dir, exp_name, p
                     st.write(f"{status_icon} **[{i + 1}]** {todo.description} - `{todo.status.value}`")
                 
                 # Export History
-                output_file = os.path.join(full_save_dir, f"{product_name}_execution_history.html")
+                output_file = os.path.join(full_save_dir, "nuclear_qa_execution_history.html")
                 observer.export("html", output_file)
                 st.success(f"Execution history exported to: `{output_file}`")
                 
-                # Provide download link (reading the file we just wrote)
+                # Provide download link
                 try:
                     with open(output_file, "rb") as f:
                         st.download_button(
                             label="Download Execution History (HTML)",
                             data=f,
-                            file_name=f"{product_name}_execution_history.html",
+                            file_name="nuclear_qa_execution_history.html",
                             mime="text/html"
                         )
                 except Exception as e:

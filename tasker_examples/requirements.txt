@@ -2,3 +2,4 @@ oagi
 openai
 google-generativeai
 streamlit
+tenacity
